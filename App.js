@@ -1,60 +1,98 @@
 const mysql2 = require("mysql2");
 const express = require("express");
 const cors = require("cors");
-const bodyparser = require("body-parser");
-const answerRoutes = require("./routes/answerRoute");
-const authMiddleware = require("./middleware/authMiddleware");
 const app = express();
 
 const port = 5500;
 
+// Middleware
+app.use(cors()); // Enable CORS for frontend (development only)
+app.use(express.json()); // Single JSON body parser (remove body-parser)
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies (if needed)
 
-app.use(bodyparser.json()); //body json format
-app.use(bodyparser.urlencoded({ extended: true }));
-app.use(cors());
-app.use(express.json());
+// Routes
+const installRoutes = require("./routes/installRoute");
+app.use("/", installRoutes);
 
-//db connection credentials
-const dbConnection = require("./db/dbconfig");
+const userRoutes = require("./routes/userRoute");
+app.use("/api/users", userRoutes);
 
-//   //testing the backend
+const questionRoutes = require("./routes/questionRoute");
+const answerRoutes = require("./routes/answerRoute");
+const authMiddleware = require("./middleware/authMiddleware");
+app.use("/api", authMiddleware, questionRoutes);
+app.use("/api", authMiddleware, answerRoutes);
+
+// Test route
 app.get("/", (req, res) => {
   res.send("welcome");
 });
 
+// Database connection
+const dbConnection = require("./db/dbconfig");
 
-
-  
-// creating tables middlewear install
-const installRoutes = require("./routes/installRoute");
-app.use("/", installRoutes);
-
-//user route middlewear
-const userRoutes = require("./routes/userRoute");
-app.use("/api/users", userRoutes);
-
-//question route middlewear
-const questionRoutes = require("./routes/questionRoute");
-app.use("/api",authMiddleware ,questionRoutes);
-
-//Answer route middlewear
-
-app.use("/api",authMiddleware,answerRoutes);
-
-// app.listen(port, () => console.log(`Listening to :${port}`));
-
-// try conncet to database and if so app listen
 async function start() {
   try {
-    const result = await dbConnection.getConnection();
-    console.log("database connection established");
+    const connection = await dbConnection.getConnection();
+    console.log(
+      "Database connection established at",
+      new Date().toLocaleString("en-US", { timeZone: "Africa/Addis_Ababa" })
+    );
+    connection.release(); // Release the connection back to the pool
   } catch (error) {
-    console.log(error.message);
+    console.error(
+      "Database connection failed at",
+      new Date().toLocaleString("en-US", { timeZone: "Africa/Addis_Ababa" }),
+      ":",
+      error.message
+    );
+    process.exit(1); // Exit if connection fails to prevent server start
   }
 }
-start();
 
-app.listen(port, (error) => {
-  if (error) console.log(error.message);
-  console.log(`Listening to :${port}`);
+// Start server after database connection
+start()
+  .then(() => {
+    app.listen(port, (error) => {
+      if (error) {
+        console.error(
+          "Server start failed at",
+          new Date().toLocaleString("en-US", {
+            timeZone: "Africa/Addis_Ababa",
+          }),
+          ":",
+          error.message
+        );
+      } else {
+        console.log(
+          "Server listening on port",
+          port,
+          "at",
+          new Date().toLocaleString("en-US", { timeZone: "Africa/Addis_Ababa" })
+        );
+      }
+    });
+  })
+  .catch((error) => {
+    console.error(
+      "Start function error at",
+      new Date().toLocaleString("en-US", { timeZone: "Africa/Addis_Ababa" }),
+      ":",
+      error.message
+    );
+    process.exit(1);
+  });
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(
+    "Global error handler at",
+    new Date().toLocaleString("en-US", { timeZone: "Africa/Addis_Ababa" }),
+    ":",
+    err
+  );
+  res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+    message: "An unexpected error occurred.",
+    error: err.message,
+  });
 });

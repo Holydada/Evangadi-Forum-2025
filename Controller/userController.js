@@ -9,7 +9,7 @@ dotenv.config();
 async function register(req, res) {
   // check if the user provides all the information required
   const { username, first_name, last_name, email, password } = req.body;
-  if (!email || !password || !first_name || !last_name || !username) {
+  if (!username || !first_name || !last_name  || !email|| !password) {
     return res.status(StatusCodes.BAD_REQUEST).json({
       message: "Please provide all required fields",
     });
